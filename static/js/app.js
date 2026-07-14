@@ -14,7 +14,6 @@
     refresh: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M6.1 9A7 7 0 0 1 18 6l2 6M18 15a7 7 0 0 1-11.9 3L4 12"/>',
     checkSquare: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 2.5 2.5L16 9"/>',
     playlistAdd: '<path d="M4 6h10M4 11h10M4 16h7M18 13v7M14.5 16.5h7"/>',
-    queueAdd: '<path d="M4 6h10M4 11h8M4 16h7"/><path d="m16 14 5 3-5 3v-6ZM18.5 5v6M15.5 8h6"/>',
     list: '<path d="M9 6h11M9 12h11M9 18h11"/><circle cx="5" cy="6" r="1"/><circle cx="5" cy="12" r="1"/><circle cx="5" cy="18" r="1"/>',
     grid: '<rect x="4" y="4" width="6" height="6" rx="1"/><rect x="14" y="4" width="6" height="6" rx="1"/><rect x="4" y="14" width="6" height="6" rx="1"/><rect x="14" y="14" width="6" height="6" rx="1"/>',
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>',
@@ -71,7 +70,6 @@
     searchTimer: null, searchActive: false, editSong: null, pendingDelete: [],
     playlistSongIds: [], playlistMode: 'existing', selectedPlaylistId: null,
     treeInitialized: false, currentPlaylist: null, playlistBaseSongs: [],
-    playQueue: [], currentQueueIndex: -1,
     lastSelectedIndex: null, visibleColumns: loadVisibleColumns(),
     sortKey: localStorage.getItem('folder-browser-sort-key') || 'title',
     sortDirection: localStorage.getItem('folder-browser-sort-direction') === 'desc' ? 'desc' : 'asc',
@@ -494,76 +492,27 @@
     menu.dataset.openMenu = String(id);
     menu.innerHTML = `
       <button data-action="play" data-id="${id}">${icon('play')}播放</button>
-      <button data-action="queue" data-id="${id}">${icon('queueAdd')}加入播放队列</button>
       <button data-action="playlist" data-id="${id}">${icon('playlistAdd')}加入歌单</button>
       <button data-action="edit" data-id="${id}">${icon('edit')}编辑信息</button>
       ${state.currentPlaylist ? `<button data-action="remove-playlist" data-id="${id}">${icon('playlistRemove')}从当前歌单移除</button>` : ''}
       <button class="danger" data-action="delete" data-id="${id}">${icon('trash')}从音乐库移除</button>`;
-    menu.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - (state.currentPlaylist ? 256 : 218))}px`;
+    menu.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - (state.currentPlaylist ? 216 : 178))}px`;
     menu.style.left = `${Math.min(rect.right - 150, window.innerWidth - 160)}px`;
     document.body.append(menu);
   }
   function closeRowMenu() { $('.row-menu-pop')?.remove(); }
 
-  function visibleSong(id) {
-    return state.songs.find((item) => item.id === id)
-      || state.playlistBaseSongs.find((item) => item.id === id)
-      || state.playQueue.find((item) => item.id === id);
-  }
-
-  function updatePlayerQueueStatus() {
-    const song = state.playQueue[state.currentQueueIndex];
+  function playSong(id) {
+    const song = state.songs.find((item) => item.id === id);
     if (!song) return;
-    const position = state.playQueue.length > 1 ? ` · ${state.currentQueueIndex + 1}/${state.playQueue.length}` : '';
-    $('#playerArtist').textContent = `${song.artist || '未知艺术家'}${position}`;
-  }
-
-  function playQueueIndex(index) {
-    const song = state.playQueue[index];
-    if (!song) return;
-    state.currentQueueIndex = index;
     const audio = $('#audio');
     const token = getAuthToken();
-    audio.src = `api/songs/${song.id}/play${token ? `?access_token=${encodeURIComponent(token)}` : ''}`;
+    audio.src = `api/songs/${id}/play${token ? `?access_token=${encodeURIComponent(token)}` : ''}`;
     $('#playerTitle').textContent = song.title || filename(song.file_path);
-    updatePlayerQueueStatus();
+    $('#playerArtist').textContent = song.artist || '未知艺术家';
     $('#player').hidden = false;
     document.body.classList.add('has-player');
     audio.play().then(() => setPlayerIcon(true)).catch(() => toast('无法播放这首歌曲', 'error'));
-  }
-
-  function playSong(id) {
-    const song = visibleSong(id);
-    if (!song) return;
-    let index = state.playQueue.findIndex((item) => item.id === song.id);
-    if (index < 0) {
-      state.playQueue.push(song);
-      index = state.playQueue.length - 1;
-    }
-    playQueueIndex(index);
-  }
-
-  function addToPlayQueue(ids) {
-    const requested = new Set(ids.map(Number));
-    const songs = state.songs.filter((song) => requested.has(song.id));
-    if (!songs.length) return toast('请先选择要加入播放队列的歌曲', 'error');
-
-    const queueWasEmpty = !state.playQueue.length || state.currentQueueIndex < 0;
-    if (queueWasEmpty) {
-      state.playQueue = [...new Map(songs.map((song) => [song.id, song])).values()];
-      state.currentQueueIndex = 0;
-      playQueueIndex(0);
-      toast(`已创建播放队列并开始播放，共 ${state.playQueue.length} 首歌曲`);
-      clearSelection();
-      return;
-    }
-
-    const existingIds = new Set(state.playQueue.map((song) => song.id));
-    const additions = songs.filter((song) => !existingIds.has(song.id));
-    state.playQueue.push(...additions);
-    updatePlayerQueueStatus();
-    toast(additions.length ? `已加入播放队列 ${additions.length} 首歌曲` : '所选歌曲已在播放队列中');
-    clearSelection();
   }
   function setPlayerIcon(playing) { $('#playerPlay').innerHTML = icon(playing ? 'pause' : 'play'); }
 
@@ -738,7 +687,6 @@
     if (menuAction) {
       const id = Number(menuAction.dataset.id); const action = menuAction.dataset.action; closeRowMenu();
       if (action === 'play') playSong(id);
-      if (action === 'queue') addToPlayQueue([id]);
       if (action === 'playlist') await openPlaylistModal([id]);
       if (action === 'edit') openEdit(id);
       if (action === 'remove-playlist') await removeFromCurrentPlaylist([id]);
@@ -785,7 +733,6 @@
     updateSelectionUI();
   });
   $('#clearSelection').addEventListener('click', clearSelection);
-  $('#bulkQueue').addEventListener('click', () => addToPlayQueue(selectedIds()));
   $('#bulkPlaylist').addEventListener('click', () => openPlaylistModal(selectedIds()));
   $('#bulkRemovePlaylist').addEventListener('click', () => removeFromCurrentPlaylist(selectedIds()));
   $('#bulkDelete').addEventListener('click', () => askDelete(selectedIds()));
@@ -825,25 +772,9 @@
 
   const audio = $('#audio');
   $('#playerPlay').addEventListener('click', () => audio.paused ? audio.play() : audio.pause());
-  $('#closePlayer').addEventListener('click', () => {
-    audio.pause();
-    audio.removeAttribute('src');
-    state.playQueue = [];
-    state.currentQueueIndex = -1;
-    $('#player').hidden = true;
-    document.body.classList.remove('has-player');
-  });
+  $('#closePlayer').addEventListener('click', () => { audio.pause(); audio.removeAttribute('src'); $('#player').hidden = true; document.body.classList.remove('has-player'); });
   audio.addEventListener('play', () => setPlayerIcon(true));
   audio.addEventListener('pause', () => setPlayerIcon(false));
-  audio.addEventListener('ended', () => {
-    const nextIndex = state.currentQueueIndex + 1;
-    if (nextIndex < state.playQueue.length) playQueueIndex(nextIndex);
-    else {
-      state.playQueue = [];
-      state.currentQueueIndex = -1;
-      setPlayerIcon(false);
-    }
-  });
   audio.addEventListener('timeupdate', () => {
     $('#playerTime').textContent = formatDuration(audio.currentTime);
     $('#playerDuration').textContent = formatDuration(audio.duration);
