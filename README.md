@@ -34,6 +34,25 @@
 - “我的歌单”区域可折叠，歌单内勾选歌曲后可批量移除
 - 桌面/移动端响应式布局与亮色/暗色主题适配
 
+## 🖼️ 界面预览
+
+<table>
+  <tr>
+    <td align="center"><strong>文件夹浏览</strong></td>
+    <td align="center"><strong>歌单管理</strong></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/desktop-folder-view.jpg" alt="桌面端文件夹浏览界面"></td>
+    <td><img src="docs/screenshots/desktop-playlist-view.jpg" alt="桌面端歌单管理界面"></td>
+  </tr>
+</table>
+
+### 📱 移动端歌曲多选
+
+<p align="center">
+  <img src="docs/screenshots/mobile-selection.jpg" alt="移动端歌曲多选和批量操作界面" width="360">
+</p>
+
 ## 🧩 界面嵌入说明
 
 插件页面已去除独立应用式侧栏和重复品牌导航，采用适合 Songloft 应用内 WebView 的双栏布局。Songloft Android、iOS、Windows、macOS 与 Linux 客户端会在应用内 WebView 打开插件。
