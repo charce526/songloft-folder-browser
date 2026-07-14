@@ -19,6 +19,7 @@
     clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>',
     folderMusic: '<path d="M3.5 7.5A2.5 2.5 0 0 1 6 5h4l2 2h6A2.5 2.5 0 0 1 20.5 9.5v7A2.5 2.5 0 0 1 18 19H6a2.5 2.5 0 0 1-2.5-2.5v-9Z"/><path d="M14 10v4.5a1.5 1.5 0 1 1-1-1.4V11l3-.7v3.2a1.5 1.5 0 1 1-1-1.4V10.8l-1 .2Z"/>',
     trash: '<path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"/>',
+    heart: '<path d="M20.8 5.8a5.1 5.1 0 0 0-7.2 0L12 7.4l-1.6-1.6a5.1 5.1 0 0 0-7.2 7.2L12 21l8.8-8a5.1 5.1 0 0 0 0-7.2Z"/>',
     pause: '<path d="M9 7v10M15 7v10"/>',
     play: '<path d="m9 7 8 5-8 5V7Z"/>',
     chevron: '<path d="m9 6 6 6-6 6"/>',
@@ -36,23 +37,24 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+  const FAVORITES_PLAYLIST_ID = 1;
   const DEFAULT_COLUMNS = ['title', 'artist', 'album', 'format', 'duration'];
   const SONG_COLUMNS = [
-    { key: 'title', label: '歌曲', locked: true },
-    { key: 'artist', label: '艺术家' },
-    { key: 'album', label: '专辑' },
-    { key: 'format', label: '格式' },
-    { key: 'duration', label: '时长', numeric: true },
-    { key: 'year', label: '年份', numeric: true },
-    { key: 'genre', label: '流派' },
-    { key: 'bit_rate', label: '码率', numeric: true },
-    { key: 'sample_rate', label: '采样率', numeric: true },
-    { key: 'file_size', label: '文件大小', numeric: true },
-    { key: 'type', label: '类型' },
-    { key: 'added_at', label: '加入时间' },
-    { key: 'file_modified_at', label: '文件修改时间' },
-    { key: 'file_path', label: '文件路径' },
-    { key: 'isrc', label: 'ISRC' },
+    { key: 'title', label: '歌曲', width: 220, locked: true },
+    { key: 'artist', label: '艺术家', width: 108 },
+    { key: 'album', label: '专辑', width: 132 },
+    { key: 'format', label: '格式', width: 64 },
+    { key: 'duration', label: '时长', width: 64, numeric: true },
+    { key: 'year', label: '年份', width: 58, numeric: true },
+    { key: 'genre', label: '流派', width: 86 },
+    { key: 'bit_rate', label: '码率', width: 78, numeric: true },
+    { key: 'sample_rate', label: '采样率', width: 84, numeric: true },
+    { key: 'file_size', label: '文件大小', width: 88, numeric: true },
+    { key: 'type', label: '类型', width: 68 },
+    { key: 'added_at', label: '加入时间', width: 104 },
+    { key: 'file_modified_at', label: '文件修改时间', width: 112 },
+    { key: 'file_path', label: '文件路径', width: 210 },
+    { key: 'isrc', label: 'ISRC', width: 112 },
   ];
 
   function loadVisibleColumns() {
@@ -66,7 +68,7 @@
 
   const state = {
     rootPath: '', currentPath: '', breadcrumbs: [], folders: [], songs: [], allPlaylists: [],
-    selected: new Set(), selectedFolders: new Set(), view: localStorage.getItem('folder-browser-view') || 'list',
+    selected: new Set(), selectedFolders: new Set(), favoriteIds: new Set(), view: localStorage.getItem('folder-browser-view') || 'list',
     searchTimer: null, searchActive: false, editSong: null, pendingDelete: [],
     playlistSongIds: [], playlistMode: 'existing', selectedPlaylistId: null,
     treeInitialized: false, currentPlaylist: null, playlistBaseSongs: [],
@@ -176,6 +178,12 @@
     `).join('') : '<div class="nav-empty">还没有普通歌单</div>';
   }
 
+  async function loadFavorites() {
+    const data = await request(() => apiGet('/api/favorites'), '收藏状态载入失败');
+    state.favoriteIds = new Set((data.songIds || []).map(Number));
+    updateFavoriteButtons();
+  }
+
   async function navigate(path, options = {}) {
     state.searchActive = false;
     state.currentPlaylist = null;
@@ -188,7 +196,6 @@
     $('#loadingState').hidden = false;
     $('#songTableWrap').hidden = true;
     $('#emptyState').hidden = true;
-    closeRowMenu();
     clearSelection();
     const suffix = `${path ? `?path=${encodeQuery(path)}` : '?'}${options.refresh ? `${path ? '&' : ''}refresh=1` : ''}`;
     try {
@@ -316,6 +323,7 @@
         await refreshFolderTree();
         await loadPlaylists();
       }
+      await loadFavorites();
       toast('歌曲列表和文件夹目录树已刷新');
     } finally {
       setBusy(button, false);
@@ -358,7 +366,6 @@
     $('#loadingState').hidden = false;
     $('#songTableWrap').hidden = true;
     $('#emptyState').hidden = true;
-    closeRowMenu();
     clearSelection();
     try {
       const data = await request(() => apiGet(`/api/playlists/${playlistId}/songs`), '歌单载入失败');
@@ -427,27 +434,74 @@
     `).join('');
   }
 
+  function songActionButton(action, id, label, iconName, classes = '') {
+    return `<button class="row-action-button ${classes}" data-action="${action}" data-id="${id}" title="${escapeHtml(label)}" aria-label="${escapeHtml(label)}">${icon(iconName)}</button>`;
+  }
+
+  function renderSongActions(song) {
+    const favorite = state.favoriteIds.has(song.id);
+    const favoriteLabel = favorite ? '取消收藏' : '加入收藏';
+    return `<div class="row-actions">
+      <button class="row-action-button favorite-action ${favorite ? 'active' : ''}" data-action="favorite" data-id="${song.id}" title="${favoriteLabel}" aria-label="${favoriteLabel}" aria-pressed="${favorite}">${icon('heart')}</button>
+      ${songActionButton('play', song.id, '播放', 'play')}
+      ${songActionButton('playlist', song.id, '加入歌单', 'playlistAdd')}
+      ${songActionButton('edit', song.id, '编辑信息', 'edit')}
+      ${state.currentPlaylist ? songActionButton('remove-playlist', song.id, '从当前歌单移除', 'playlistRemove') : ''}
+      ${songActionButton('delete', song.id, '从音乐库移除', 'trash', 'danger')}
+    </div>`;
+  }
+
+  function updateFavoriteButtons() {
+    $$('[data-action="favorite"]').forEach((button) => {
+      const favorite = state.favoriteIds.has(Number(button.dataset.id));
+      const label = favorite ? '取消收藏' : '加入收藏';
+      button.classList.toggle('active', favorite);
+      button.setAttribute('aria-pressed', String(favorite));
+      button.setAttribute('aria-label', label);
+      button.title = label;
+    });
+  }
+
+  async function toggleFavorite(id, button) {
+    const favorite = !state.favoriteIds.has(id);
+    button.disabled = true;
+    try {
+      const data = await request(() => apiPost(`/api/favorites/${id}`, { favorite }), '收藏操作失败');
+      if (data.favorite) state.favoriteIds.add(id); else state.favoriteIds.delete(id);
+      updateFavoriteButtons();
+      toast(data.favorite ? '已加入收藏' : '已取消收藏');
+      if (state.currentPlaylist?.id === FAVORITES_PLAYLIST_ID && !data.favorite) await openPlaylist(FAVORITES_PLAYLIST_ID);
+      else await loadPlaylists();
+    } finally {
+      button.disabled = false;
+    }
+  }
+
   function renderSongs() {
     sortSongs();
     const wrap = $('#songTableWrap');
+    const actionWidth = state.currentPlaylist ? 198 : 166;
+    const columnWidth = state.visibleColumns.reduce((total, key) => total + (SONG_COLUMNS.find((column) => column.key === key)?.width || 90), 0);
     $('#emptyState').hidden = !!state.songs.length;
     wrap.hidden = !state.songs.length;
     wrap.classList.toggle('grid-view', state.view === 'grid');
     wrap.style.setProperty('--column-count', String(state.visibleColumns.length));
+    wrap.style.setProperty('--actions-width', `${actionWidth}px`);
+    wrap.style.setProperty('--table-min-width', `${37 + columnWidth + actionWidth}px`);
     $$('[data-view]').forEach((button) => button.classList.toggle('active', button.dataset.view === state.view));
     $('#songTableHead').innerHTML = `
       <th class="check-cell"><input id="masterCheckbox" type="checkbox" aria-label="选择全部歌曲"></th>
       ${state.visibleColumns.map((key) => {
         const column = SONG_COLUMNS.find((item) => item.key === key);
         const active = state.sortKey === key;
-        return `<th class="song-column-head col-${key}"><button class="sort-button ${active ? 'active' : ''}" data-sort-key="${key}">${column.label}<span class="sort-indicator">${active ? (state.sortDirection === 'asc' ? '▲' : '▼') : ''}</span></button></th>`;
+        return `<th class="song-column-head col-${key}" style="width:${column.width}px"><button class="sort-button ${active ? 'active' : ''}" data-sort-key="${key}">${column.label}<span class="sort-indicator">${active ? (state.sortDirection === 'asc' ? '▲' : '▼') : ''}</span></button></th>`;
       }).join('')}
       <th class="actions-head"></th>`;
     $('#songTableBody').innerHTML = state.songs.map((song) => `
       <tr data-song-id="${song.id}" class="${state.selected.has(song.id) ? 'selected' : ''}">
         <td class="check-cell"><input class="song-checkbox" type="checkbox" data-song-id="${song.id}" ${state.selected.has(song.id) ? 'checked' : ''} aria-label="选择 ${escapeHtml(song.title)}"></td>
         ${state.visibleColumns.map((key) => songColumnCell(song, key)).join('')}
-        <td class="row-menu actions-cell"><button class="icon-button row-menu-button" data-menu-id="${song.id}" aria-label="更多操作">${icon('more')}</button></td>
+        <td class="actions-cell">${renderSongActions(song)}</td>
       </tr>
     `).join('');
     $('#songGrid').innerHTML = state.songs.map((song) => `
@@ -692,26 +746,6 @@
     } finally { $('#loadingState').hidden = true; }
   }
 
-  function openRowMenu(id, button) {
-    closeRowMenu();
-    const song = state.songs.find((item) => item.id === id);
-    if (!song) return;
-    const rect = button.getBoundingClientRect();
-    const menu = document.createElement('div');
-    menu.className = 'row-menu-pop';
-    menu.dataset.openMenu = String(id);
-    menu.innerHTML = `
-      <button data-action="play" data-id="${id}">${icon('play')}播放</button>
-      <button data-action="playlist" data-id="${id}">${icon('playlistAdd')}加入歌单</button>
-      <button data-action="edit" data-id="${id}">${icon('edit')}编辑信息</button>
-      ${state.currentPlaylist ? `<button data-action="remove-playlist" data-id="${id}">${icon('playlistRemove')}从当前歌单移除</button>` : ''}
-      <button class="danger" data-action="delete" data-id="${id}">${icon('trash')}从音乐库移除</button>`;
-    menu.style.top = `${Math.min(rect.bottom + 4, window.innerHeight - (state.currentPlaylist ? 216 : 178))}px`;
-    menu.style.left = `${Math.min(rect.right - 150, window.innerWidth - 160)}px`;
-    document.body.append(menu);
-  }
-  function closeRowMenu() { $('.row-menu-pop')?.remove(); }
-
   function playSong(id) {
     const song = state.songs.find((item) => item.id === id);
     if (!song) return;
@@ -891,11 +925,10 @@
     if (viewButton) { state.view = viewButton.dataset.view; localStorage.setItem('folder-browser-view', state.view); renderSongs(); return; }
     const playButton = target.closest('[data-play-id]');
     if (playButton) { playSong(Number(playButton.dataset.playId)); return; }
-    const menuButton = target.closest('[data-menu-id]');
-    if (menuButton) { event.stopPropagation(); openRowMenu(Number(menuButton.dataset.menuId), menuButton); return; }
     const menuAction = target.closest('[data-action]');
     if (menuAction) {
-      const id = Number(menuAction.dataset.id); const action = menuAction.dataset.action; closeRowMenu();
+      const id = Number(menuAction.dataset.id); const action = menuAction.dataset.action;
+      if (action === 'favorite') await toggleFavorite(id, menuAction);
       if (action === 'play') playSong(id);
       if (action === 'playlist') await openPlaylistModal([id]);
       if (action === 'edit') openEdit(id);
@@ -914,7 +947,6 @@
     if (playlistChoice) { state.selectedPlaylistId = Number(playlistChoice.dataset.playlistId); renderPlaylistModal(); return; }
     const tab = target.closest('[data-tab]');
     if (tab) { state.playlistMode = tab.dataset.tab; renderPlaylistModal(); return; }
-    if (!target.closest('.row-menu-pop')) closeRowMenu();
     if (!target.closest('.column-settings-wrap')) {
       $('#columnSettingsPanel').hidden = true;
       $('#columnSettingsButton').setAttribute('aria-expanded', 'false');
@@ -984,7 +1016,7 @@
   });
   document.addEventListener('keydown', (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); $('#searchInput').focus(); }
-    if (event.key === 'Escape') { $$('.modal-backdrop:not([hidden])').forEach(closeModal); closeRowMenu(); }
+    if (event.key === 'Escape') $$('.modal-backdrop:not([hidden])').forEach(closeModal);
   });
 
   const audio = $('#audio');
@@ -1049,5 +1081,5 @@
     $('#playlistSectionToggle').setAttribute('aria-expanded', 'false');
   }
   scheduleScrollRailUpdate();
-  Promise.all([navigate(''), loadPlaylists()]).catch(() => {});
+  Promise.all([navigate(''), loadPlaylists(), loadFavorites()]).catch(() => {});
 })();

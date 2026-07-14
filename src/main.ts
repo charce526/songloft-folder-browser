@@ -12,6 +12,7 @@ import {
 const router = createRouter();
 const PAGE_SIZE = 1000;
 const CACHE_TTL_MS = 15_000;
+const FAVORITES_PLAYLIST_ID = 1;
 
 interface LibrarySnapshot {
   songs: Song[];
@@ -262,6 +263,34 @@ router.get('/api/playlists/:id/songs', async (_req, params) => {
     if (!playlist) return jsonResponse({ error: '歌单不存在' }, 404);
     const songs = await songloft.playlists.getSongs(playlistId);
     return jsonResponse({ playlist, songs });
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+router.get('/api/favorites', async () => {
+  try {
+    const playlist = await songloft.playlists.getById(FAVORITES_PLAYLIST_ID);
+    if (!playlist) return jsonResponse({ songIds: [] });
+    const songs = await songloft.playlists.getSongs(FAVORITES_PLAYLIST_ID);
+    return jsonResponse({ songIds: songs.map((song) => song.id) });
+  } catch (error) {
+    return errorResponse(error);
+  }
+});
+
+router.post('/api/favorites/:id', async (req, params) => {
+  try {
+    const id = Number(params.id);
+    if (!Number.isInteger(id) || id <= 0) throw new Error('无效的歌曲 ID');
+    const song = await songloft.songs.getById(id);
+    if (!song) return jsonResponse({ error: '歌曲不存在' }, 404);
+    if (song.type === 'radio') throw new Error('电台请使用电台收藏');
+    const body = parseBody(req);
+    const favorite = body.favorite !== false;
+    if (favorite) await songloft.playlists.addSongs(FAVORITES_PLAYLIST_ID, [id]);
+    else await songloft.playlists.removeSongs(FAVORITES_PLAYLIST_ID, [id]);
+    return jsonResponse({ songId: id, favorite });
   } catch (error) {
     return errorResponse(error);
   }
