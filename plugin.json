@@ -3,7 +3,7 @@
   "name": "文件夹浏览",
   "version": "0.4.4",
   "description": "通过文件夹视图进行歌曲浏览、整理和歌单创建",
-  "author": "Ding",
+  "author": "charce526",
   "homepage": "https://github.com/charce526/songloft-folder-browser",
   "license": "Apache-2.0",
   "entryPath": "folder-browser",

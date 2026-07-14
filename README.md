@@ -2,14 +2,14 @@
 
 一款面向 Songloft 的 JS 插件，按歌曲原始 `file_path` 自动还原文件夹结构，并在同一个内嵌式双栏界面中完成浏览、播放和整理。
 
-作者：Ding
+> 🤖 本插件由 AI 生成。欢迎通过 GitHub Issues 反馈使用中遇到的问题与改进建议。
 
-## 安装
+## 🚀 安装
 
 - 插件订阅源：`https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/registry.json`
 - 单独安装：下载仓库 `releases` 目录中的 `folder-browser-v0.4.4.jsplugin.zip`
 
-## 功能
+## ✨ 功能
 
 - 左侧可展开/折叠的文件夹目录树，右侧显示当前目录歌曲
 - 右侧同步显示当前目录的子文件夹，可多选后将其中歌曲整体加入歌单
@@ -28,7 +28,7 @@
 - “我的歌单”区域可折叠，歌单内勾选歌曲后可批量移除
 - 桌面/移动端响应式布局与亮色/暗色主题适配
 
-## 界面嵌入说明
+## 🧩 界面嵌入说明
 
 插件页面已去除独立应用式侧栏和重复品牌导航，采用适合 Songloft 应用内 WebView 的双栏布局。Songloft Android、iOS、Windows、macOS 与 Linux 客户端会在应用内 WebView 打开插件。
 
@@ -36,13 +36,12 @@ Songloft 官方 Web 客户端目前会通过新标签页打开 JS 插件，这�
 
 插件的浅色/深色模式直接读取 Songloft 外观设置，并监听运行时主题切换；旧版客户端缺少主题桥接方法时会使用 Songloft 保存的主题标记与系统主题兜底。
 
-## 更新记录
+## 📝 更新记录
 
 ### v0.4.4
 
-- 作者更新为 Ding
 - 插件描述更新为“通过文件夹视图进行歌曲浏览、整理和歌单创建”
-- 增加 GitHub Release 与 Songloft 插件订阅源发布结构
+- 增加 GitHub 源码仓库、安装包与 Songloft 插件订阅源发布结构
 
 ### v0.4.3
 
@@ -88,7 +87,7 @@ Songloft 官方 Web 客户端目前会通过新标签页打开 JS 插件，这�
 
 > 插件只根据 Songloft 数据库里已入库歌曲的路径构建目录，不直接遍历或移动音乐文件。没有 `file_path` 的网络歌曲会归入“未归档歌曲”。
 
-## 兼容性与权限
+## 🔐 兼容性与权限
 
 - Songloft `>= 2.8.0`
 - `songs.read`：浏览和播放歌曲
@@ -97,7 +96,7 @@ Songloft 官方 Web 客户端目前会通过新标签页打开 JS 插件，这�
 
 插件不申请 `fs:music`，也不读取音乐根目录以外的文件。
 
-## 构建
+## 🛠️ 构建
 
 ```bash
 npm install
@@ -107,7 +106,7 @@ npm run build
 
 构建完成后，将 `dist/folder-browser.jsplugin.zip` 上传到 Songloft 的插件管理页面。
 
-## 开发联调
+## 🔧 开发联调
 
 ```bash
 npm run dev
@@ -115,7 +114,7 @@ npm run dev
 
 首次运行会提示输入 Songloft 地址、用户名和密码。开发工具会自动构建、上传并在源码变化后热更新插件。
 
-## 使用提示
+## 💡 使用提示
 
 1. 先在 Songloft 中完成音乐目录扫描。
 2. 启用“文件夹浏览”插件并打开插件页面。
@@ -124,6 +123,6 @@ npm run dev
 
 `songs.delete` 的插件接口说明包含歌曲记录、封面与缓存清理，未声明删除原始音频文件。界面仍会在提交前要求二次勾选确认；具体行为以所安装 Songloft 版本为准。
 
-## License
+## 📄 License
 
 Apache-2.0
