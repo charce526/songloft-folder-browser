@@ -65,7 +65,7 @@
   }
 
   const state = {
-    rootPath: '', currentPath: '', folders: [], songs: [], allPlaylists: [],
+    rootPath: '', currentPath: '', breadcrumbs: [], folders: [], songs: [], allPlaylists: [],
     selected: new Set(), selectedFolders: new Set(), view: localStorage.getItem('folder-browser-view') || 'list',
     searchTimer: null, searchActive: false, editSong: null, pendingDelete: [],
     playlistSongIds: [], playlistMode: 'existing', selectedPlaylistId: null,
@@ -195,6 +195,7 @@
       const data = await request(() => apiGet(`/api/folders${suffix}`), '文件夹载入失败');
       state.rootPath = data.rootPath || '';
       state.currentPath = data.currentPath || state.rootPath;
+      state.breadcrumbs = data.breadcrumbs || [];
       state.folders = data.folders || [];
       state.songs = data.songs || [];
       $('#libraryCount').textContent = data.totalSongs ?? 0;
@@ -282,6 +283,43 @@
       <div class="tree-children">${(data.folders || []).map((folder) => treeNode(folder, 1)).join('')}</div>
     </div>`;
     state.treeInitialized = true;
+  }
+
+  async function refreshFolderTree() {
+    const rootData = await request(
+      () => apiGet(`/api/folders?path=${encodeQuery(state.rootPath)}`),
+      '目录树刷新失败',
+    );
+    renderTreeRoot(rootData);
+    for (const item of state.breadcrumbs.slice(1)) {
+      const node = $$('[data-tree-path]', $('#folderTree')).find((entry) => entry.dataset.treePath === item.path);
+      if (!node) break;
+      await toggleTreeNode(node, true);
+    }
+    syncActiveTree();
+  }
+
+  async function refreshCurrentView() {
+    const button = $('#refreshButton');
+    const playlistId = state.currentPlaylist?.id;
+    const currentPath = state.currentPath;
+    setBusy(button, true, '刷新中…');
+    try {
+      if (playlistId) {
+        const rootData = await request(() => apiGet('/api/folders?refresh=1'), '音乐库刷新失败');
+        state.rootPath = rootData.rootPath || state.rootPath;
+        $('#libraryCount').textContent = rootData.totalSongs ?? 0;
+        renderTreeRoot(rootData);
+        await openPlaylist(playlistId);
+      } else {
+        await navigate(currentPath, { refresh: true });
+        await refreshFolderTree();
+        await loadPlaylists();
+      }
+      toast('歌曲列表和文件夹目录树已刷新');
+    } finally {
+      setBusy(button, false);
+    }
   }
 
   async function toggleTreeNode(node, forceOpen = false) {
@@ -420,6 +458,7 @@
     `).join('');
     renderColumnSettings();
     updateSelectionUI();
+    scheduleScrollRailUpdate();
   }
 
   function updateSelectionUI() {
@@ -449,6 +488,177 @@
   }
   function clearSelection() { state.selected.clear(); state.lastSelectedIndex = null; updateSelectionUI(); }
   function selectedIds() { return [...state.selected]; }
+
+  function isSongRowControl(target) {
+    return !!target.closest('button, input, label, a, select, textarea, [data-action]');
+  }
+
+  function songSelectionTarget(target) {
+    if (!(target instanceof Element) || isSongRowControl(target)) return null;
+    return target.closest('[data-song-id]');
+  }
+
+  function setSongSelection(id, selected) {
+    if (!Number.isInteger(id) || id <= 0) return;
+    if (selected) state.selected.add(id); else state.selected.delete(id);
+    const index = state.songs.findIndex((song) => song.id === id);
+    if (index >= 0) state.lastSelectedIndex = index;
+    updateSelectionUI();
+  }
+
+  let mouseSelectionDrag = null;
+  let touchSelectionPending = null;
+  let touchSelectionDrag = null;
+  let suppressSongClickUntil = 0;
+
+  function applySelectionDrag(drag, target) {
+    const row = songSelectionTarget(target);
+    const id = Number(row?.dataset.songId);
+    if (!row || !Number.isInteger(id) || drag.visited.has(id)) return;
+    drag.visited.add(id);
+    setSongSelection(id, drag.selected);
+  }
+
+  function autoScrollSongSelection(clientY) {
+    const pane = $('.content-pane');
+    const rect = pane.getBoundingClientRect();
+    const edge = Math.min(72, rect.height * 0.16);
+    let delta = 0;
+    if (clientY < rect.top + edge) delta = -Math.min(24, Math.ceil((rect.top + edge - clientY) / 3));
+    else if (clientY > rect.bottom - edge) delta = Math.min(24, Math.ceil((clientY - rect.bottom + edge) / 3));
+    if (!delta) return;
+    pane.scrollTop += delta;
+    scheduleScrollRailUpdate();
+  }
+
+  document.addEventListener('mousedown', (event) => {
+    if (event.button !== 0 || Date.now() < suppressSongClickUntil) return;
+    const row = songSelectionTarget(event.target);
+    if (!row) return;
+    const id = Number(row.dataset.songId);
+    if (!Number.isInteger(id)) return;
+    event.preventDefault();
+    const selected = !state.selected.has(id);
+    mouseSelectionDrag = { selected, visited: new Set(), startX: event.clientX, startY: event.clientY };
+    if (event.shiftKey) {
+      toggleSong(id, selected, true);
+      mouseSelectionDrag.visited.add(id);
+    } else {
+      applySelectionDrag(mouseSelectionDrag, row);
+    }
+    document.body.classList.add('song-selection-dragging');
+  });
+
+  document.addEventListener('mousemove', (event) => {
+    if (!mouseSelectionDrag || !(event.buttons & 1)) return;
+    event.preventDefault();
+    autoScrollSongSelection(event.clientY);
+    applySelectionDrag(mouseSelectionDrag, document.elementFromPoint(event.clientX, event.clientY));
+  });
+
+  document.addEventListener('mouseup', () => {
+    if (!mouseSelectionDrag) return;
+    mouseSelectionDrag = null;
+    suppressSongClickUntil = Date.now() + 350;
+    document.body.classList.remove('song-selection-dragging');
+  });
+
+  document.addEventListener('touchstart', (event) => {
+    if (event.touches.length !== 1) return;
+    const row = songSelectionTarget(event.target);
+    if (!row) return;
+    const touch = event.touches[0];
+    const id = Number(row.dataset.songId);
+    const pending = {
+      id,
+      row,
+      startX: touch.clientX,
+      startY: touch.clientY,
+      timer: null,
+    };
+    pending.timer = setTimeout(() => {
+      if (touchSelectionPending !== pending) return;
+      touchSelectionDrag = { selected: !state.selected.has(id), visited: new Set() };
+      applySelectionDrag(touchSelectionDrag, row);
+      touchSelectionPending = null;
+      document.body.classList.add('song-selection-dragging');
+      navigator.vibrate?.(18);
+    }, 360);
+    touchSelectionPending = pending;
+  }, { passive: true });
+
+  document.addEventListener('touchmove', (event) => {
+    const touch = event.touches[0];
+    if (!touch) return;
+    if (touchSelectionDrag) {
+      event.preventDefault();
+      autoScrollSongSelection(touch.clientY);
+      applySelectionDrag(touchSelectionDrag, document.elementFromPoint(touch.clientX, touch.clientY));
+      return;
+    }
+    if (!touchSelectionPending) return;
+    if (Math.hypot(touch.clientX - touchSelectionPending.startX, touch.clientY - touchSelectionPending.startY) > 9) {
+      clearTimeout(touchSelectionPending.timer);
+      touchSelectionPending = null;
+    }
+  }, { passive: false });
+
+  document.addEventListener('touchend', (event) => {
+    if (touchSelectionPending) {
+      clearTimeout(touchSelectionPending.timer);
+      touchSelectionPending = null;
+    }
+    if (!touchSelectionDrag) return;
+    event.preventDefault();
+    touchSelectionDrag = null;
+    suppressSongClickUntil = Date.now() + 500;
+    document.body.classList.remove('song-selection-dragging');
+  }, { passive: false });
+
+  document.addEventListener('touchcancel', () => {
+    if (touchSelectionPending) clearTimeout(touchSelectionPending.timer);
+    touchSelectionPending = null;
+    touchSelectionDrag = null;
+    document.body.classList.remove('song-selection-dragging');
+  });
+
+  let scrollRailFrame = 0;
+  let scrollThumbDrag = null;
+
+  function updateScrollRail() {
+    scrollRailFrame = 0;
+    const pane = $('.content-pane');
+    const rail = $('#mobileScrollRail');
+    const thumb = $('#mobileScrollThumb');
+    if (!pane || !rail || !thumb) return;
+    const mobile = window.matchMedia('(max-width: 700px)').matches;
+    const maxScroll = Math.max(0, pane.scrollHeight - pane.clientHeight);
+    rail.classList.toggle('visible', mobile && maxScroll > 8);
+    if (!mobile || maxScroll <= 8) return;
+    const trackHeight = rail.clientHeight;
+    const thumbHeight = Math.max(52, Math.round(trackHeight * pane.clientHeight / pane.scrollHeight));
+    const travel = Math.max(0, trackHeight - thumbHeight);
+    const top = maxScroll ? Math.round((pane.scrollTop / maxScroll) * travel) : 0;
+    thumb.style.height = `${thumbHeight}px`;
+    thumb.style.transform = `translateY(${top}px)`;
+  }
+
+  function scheduleScrollRailUpdate() {
+    if (scrollRailFrame) cancelAnimationFrame(scrollRailFrame);
+    scrollRailFrame = requestAnimationFrame(updateScrollRail);
+  }
+
+  function scrollPaneFromRail(clientY, grabOffset) {
+    const pane = $('.content-pane');
+    const rail = $('#mobileScrollRail');
+    const thumb = $('#mobileScrollThumb');
+    const rect = rail.getBoundingClientRect();
+    const thumbHeight = thumb.offsetHeight;
+    const travel = Math.max(1, rect.height - thumbHeight);
+    const top = Math.max(0, Math.min(travel, clientY - rect.top - grabOffset));
+    const maxScroll = Math.max(0, pane.scrollHeight - pane.clientHeight);
+    pane.scrollTop = (top / travel) * maxScroll;
+  }
 
   async function search(keyword) {
     const query = keyword.trim();
@@ -693,6 +903,13 @@
       if (action === 'delete') askDelete([id]);
       return;
     }
+    const songRow = songSelectionTarget(target);
+    if (songRow) {
+      if (Date.now() < suppressSongClickUntil) return;
+      const id = Number(songRow.dataset.songId);
+      toggleSong(id, !state.selected.has(id), event.shiftKey);
+      return;
+    }
     const playlistChoice = target.closest('[data-playlist-id]');
     if (playlistChoice) { state.selectedPlaylistId = Number(playlistChoice.dataset.playlistId); renderPlaylistModal(); return; }
     const tab = target.closest('[data-tab]');
@@ -748,7 +965,7 @@
   $('#saveSong').addEventListener('click', saveEdit);
   $('#confirmDelete').addEventListener('click', confirmDelete);
   $('#deleteAcknowledgement').addEventListener('change', (event) => { $('#confirmDelete').disabled = !event.target.checked; });
-  $('#refreshButton').addEventListener('click', () => state.currentPlaylist ? openPlaylist(state.currentPlaylist.id) : navigate(state.currentPath, { refresh: true }));
+  $('#refreshButton').addEventListener('click', refreshCurrentView);
   $('#menuButton').addEventListener('click', () => document.body.classList.add('tree-open'));
   $('#treeScrim').addEventListener('click', () => document.body.classList.remove('tree-open'));
   $('#collapseTree').addEventListener('click', () => {
@@ -782,6 +999,47 @@
   });
   $('#playerSeek').addEventListener('input', (event) => { if (audio.duration) audio.currentTime = (Number(event.target.value) / 100) * audio.duration; });
 
+  const contentPane = $('.content-pane');
+  const scrollRail = $('#mobileScrollRail');
+  const scrollThumb = $('#mobileScrollThumb');
+  contentPane.addEventListener('scroll', scheduleScrollRailUpdate, { passive: true });
+  window.addEventListener('resize', scheduleScrollRailUpdate);
+  scrollThumb.addEventListener('pointerdown', (event) => {
+    event.preventDefault();
+    const rect = scrollThumb.getBoundingClientRect();
+    scrollThumbDrag = { pointerId: event.pointerId, grabOffset: event.clientY - rect.top };
+    scrollThumb.setPointerCapture?.(event.pointerId);
+    document.body.classList.add('scroll-thumb-dragging');
+  });
+  scrollRail.addEventListener('pointerdown', (event) => {
+    if (event.target === scrollThumb) return;
+    event.preventDefault();
+    const grabOffset = scrollThumb.offsetHeight / 2;
+    scrollThumbDrag = { pointerId: event.pointerId, grabOffset };
+    scrollPaneFromRail(event.clientY, grabOffset);
+    scrollRail.setPointerCapture?.(event.pointerId);
+    document.body.classList.add('scroll-thumb-dragging');
+  });
+  document.addEventListener('pointermove', (event) => {
+    if (!scrollThumbDrag || event.pointerId !== scrollThumbDrag.pointerId) return;
+    event.preventDefault();
+    scrollPaneFromRail(event.clientY, scrollThumbDrag.grabOffset);
+  });
+  document.addEventListener('pointerup', (event) => {
+    if (!scrollThumbDrag || event.pointerId !== scrollThumbDrag.pointerId) return;
+    scrollThumbDrag = null;
+    document.body.classList.remove('scroll-thumb-dragging');
+  });
+  document.addEventListener('pointercancel', () => {
+    scrollThumbDrag = null;
+    document.body.classList.remove('scroll-thumb-dragging');
+  });
+  if (typeof ResizeObserver === 'function') {
+    const scrollObserver = new ResizeObserver(scheduleScrollRailUpdate);
+    scrollObserver.observe(contentPane);
+    scrollObserver.observe($('.content'));
+  }
+
   syncThemeFromSongloft();
   if (typeof bridge.onThemeChange === 'function') bridge.onThemeChange(applyHostTheme);
   window.addEventListener('songloft-theme-change', (event) => applyHostTheme(event.detail?.theme || event.detail));
@@ -790,5 +1048,6 @@
     $('#playlistSection').classList.add('collapsed');
     $('#playlistSectionToggle').setAttribute('aria-expanded', 'false');
   }
+  scheduleScrollRailUpdate();
   Promise.all([navigate(''), loadPlaylists()]).catch(() => {});
 })();

@@ -13,7 +13,7 @@
 ## 🚀 安装
 
 - 插件订阅源：`https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/registry.json`
-- 单独安装：下载仓库 `releases` 目录中的 `folder-browser-v0.4.4.jsplugin.zip`
+- 单独安装：下载仓库 `releases` 目录中的 `folder-browser-v0.4.6.jsplugin.zip`
 
 ## ✨ 功能
 
@@ -62,6 +62,14 @@ Songloft 官方 Web 客户端目前会通过新标签页打开 JS 插件，这�
 插件的浅色/深色模式直接读取 Songloft 外观设置，并监听运行时主题切换；旧版客户端缺少主题桥接方法时会使用 Songloft 保存的主题标记与系统主题兜底。
 
 ## 📝 更新记录
+
+### v0.4.6
+
+- 刷新当前歌曲时同步重建左侧文件夹树，并更新歌单导航数据
+- 移动端隐藏无效的列设置入口，新增右侧可拖动快速滚动条
+- 支持点击歌曲整行选择，以及桌面端拖选和移动端长按拖选
+- 修复 PC 紧凑视图中批量操作条超出歌曲区域、“加入歌单”文字被挤出视图的问题
+- 修复移动端歌曲行复选框未垂直居中的问题
 
 ### v0.4.4
 

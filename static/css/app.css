@@ -130,7 +130,7 @@ button { color: inherit; }
 .sort-indicator { min-width: 9px; color: var(--accent) !important; font-size: 7px !important; }
 .song-table td { height: 54px; padding: 6px 8px; border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .song-table tbody tr:last-child td { border-bottom: 0; }
-.song-table tbody tr { transition: background .15s; }
+.song-table tbody tr { transition: background .15s; cursor: pointer; user-select: none; }
 .song-table tbody tr:hover, .song-table tbody tr.selected { background: color-mix(in srgb, var(--accent-soft) 43%, transparent); }
 .check-cell { padding-left: 15px !important; }
 input[type="checkbox"] { appearance: none; width: 16px; height: 16px; display: grid; place-items: center; border: 1.5px solid var(--line); border-radius: 5px; background: var(--card); cursor: pointer; }
@@ -169,7 +169,7 @@ input[type="checkbox"]:checked::after { content: ""; width: 7px; height: 4px; bo
 .song-grid { display: none; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 16px; padding: 18px; }
 .song-table-wrap.grid-view .song-table { display: none; }
 .song-table-wrap.grid-view .song-grid { display: grid; }
-.song-card { min-width: 0; position: relative; }
+.song-card { min-width: 0; position: relative; cursor: pointer; user-select: none; }
 .song-card .cover { width: 100%; height: auto; aspect-ratio: 1; border-radius: 15px; margin-bottom: 10px; }
 .song-card .cover img { position: absolute; inset: 0; }
 .song-card:hover .cover-play { opacity: 1; }
@@ -207,6 +207,9 @@ input[type="checkbox"]:checked::after { content: ""; width: 7px; height: 4px; bo
 .player-info span { color: var(--muted); font-size: 10px; }
 .player-progress { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 9px; }
 .player-progress input { flex: 1; accent-color: var(--accent); }
+
+.mobile-scroll-rail { display: none; }
+.song-selection-dragging, .song-selection-dragging * { cursor: crosshair !important; user-select: none !important; }
 
 .modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 18px; background: rgba(28, 25, 22, .48); backdrop-filter: blur(7px); }
 .modal { width: min(520px, 100%); max-height: min(720px, calc(100vh - 36px)); display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 22px; background: var(--card); box-shadow: 0 26px 80px rgba(20, 18, 16, .3); animation: modal-in .18s ease-out; }
@@ -277,6 +280,7 @@ html[data-theme="dark"] .bulk-bar { background: #211f1c; color: #f7f4ef; }
   .folder-icon { width: 37px; height: 37px; }
   .folder-open > [data-icon]:last-child { display: none; }
   .view-controls > [data-view] { display: none !important; }
+  .column-settings-wrap { display: none !important; }
   .song-table-wrap { border: 0; background: transparent; overflow: visible; }
   .song-table { display: block; }
   .song-table thead { display: none; }
@@ -410,6 +414,39 @@ html, body { height: 100%; overflow: hidden; }
   .player { left: 10px; right: 10px; bottom: 10px; grid-template-columns: 43px 1fr 36px; min-height: 64px; }
   .player-progress { grid-column: 1 / -1; display: none; }
   body.has-player .bulk-bar { bottom: 84px; }
+  .mobile-scroll-rail.visible {
+    position: fixed;
+    top: 60px;
+    right: 1px;
+    bottom: 8px;
+    z-index: 28;
+    display: block;
+    width: 18px;
+    touch-action: none;
+  }
+  .mobile-scroll-rail::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 4px;
+    bottom: 0;
+    width: 3px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--line) 58%, transparent);
+  }
+  .mobile-scroll-thumb {
+    position: absolute;
+    top: 0;
+    right: 2px;
+    width: 8px;
+    min-height: 52px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 78%, var(--muted));
+    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink) 18%, transparent);
+    opacity: .86;
+    touch-action: none;
+  }
+  body.tree-open .mobile-scroll-rail { display: none; }
 }
 
 /* Songloft host theme — explicit dark palette avoids light fallbacks in WebView. */
@@ -644,6 +681,36 @@ input[type="checkbox"]:checked::after {
   .folder-grid { grid-template-columns: 1fr; }
 }
 
+/* Keep the desktop selection toolbar inside the song pane at compact PC widths. */
+@media (min-width: 701px) {
+  .bulk-bar {
+    max-width: calc(100vw - 248px);
+    gap: 5px;
+    padding: 7px 8px 7px 12px;
+  }
+  .bulk-count {
+    flex: 0 0 auto;
+    padding-right: 3px;
+    white-space: nowrap;
+  }
+  .bulk-action {
+    flex: 0 0 auto;
+    gap: 5px;
+    padding-inline: 8px;
+    white-space: nowrap;
+  }
+  .bulk-action-label { white-space: nowrap; }
+}
+
+@media (min-width: 701px) and (max-width: 900px) {
+  .bulk-bar {
+    max-width: calc(100vw - 230px);
+    gap: 3px;
+    padding-inline: 7px;
+  }
+  .bulk-action { padding-inline: 6px; }
+}
+
 /* Mobile bulk actions: centered, complete and icon-first. */
 @media (max-width: 700px) {
   .bulk-bar {
@@ -682,5 +749,10 @@ input[type="checkbox"]:checked::after {
   .bulk-action-label { display: none; }
   .bulk-action [data-icon] svg, .bulk-bar #clearSelection [data-icon] svg { width: 21px; height: 21px; }
   .bulk-bar #clearSelection { width: 39px; height: 39px; flex: 0 0 39px; }
+  .song-table td.check-cell {
+    display: grid !important;
+    place-items: center;
+    padding: 0 !important;
+  }
   body.has-player .bulk-bar { bottom: calc(82px + env(safe-area-inset-bottom)); }
 }
