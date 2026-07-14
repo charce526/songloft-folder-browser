@@ -4,6 +4,12 @@
 
 > 🤖 本插件由 AI 生成。欢迎通过 GitHub Issues 反馈使用中遇到的问题与改进建议。
 
+## 🎵 关于 Songloft
+
+[Songloft](https://github.com/songloft-org/songloft) 是一个面向个人用户的自托管音乐服务器。本插件基于 Songloft 的 JS 插件机制开发，为其音乐库补充文件夹浏览、歌曲整理和歌单管理能力。
+
+本仓库是独立的第三方插件项目，并非 Songloft 主程序；Songloft 的安装、使用说明、版本发布和源代码请前往 [Songloft 官方源项目](https://github.com/songloft-org/songloft) 查看。
+
 ## 🚀 安装
 
 - 插件订阅源：`https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/registry.json`
