@@ -1,0 +1,18 @@
+{
+  "name": "songloft-folder-browser",
+  "version": "0.4.4",
+  "description": "通过文件夹视图进行歌曲浏览、整理和歌单创建",
+  "private": true,
+  "scripts": {
+    "build": "songloft-plugin build",
+    "dev": "songloft-plugin dev",
+    "validate": "songloft-plugin validate",
+    "typecheck": "tsc --noEmit",
+    "check": "npm run typecheck && node --check static/js/app.js"
+  },
+  "devDependencies": {
+    "@songloft/plugin-builder": "2.9.4",
+    "@songloft/plugin-sdk": "2.9.4",
+    "typescript": "^5.7.0"
+  }
+}

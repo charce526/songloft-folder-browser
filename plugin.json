@@ -1,0 +1,23 @@
+{
+  "$schema": "https://raw.githubusercontent.com/songloft-org/plugin-toolchain/main/schemas/plugin.schema.json",
+  "name": "文件夹浏览",
+  "version": "0.4.4",
+  "description": "通过文件夹视图进行歌曲浏览、整理和歌单创建",
+  "author": "Ding",
+  "homepage": "https://github.com/charce526/songloft-folder-browser",
+  "license": "Apache-2.0",
+  "entryPath": "folder-browser",
+  "main": "main.js",
+  "minHostVersion": "2.8.0",
+  "permissions": [
+    "songs.read",
+    "songs.write",
+    "playlists.read",
+    "playlists.write"
+  ],
+  "icon": "icon.svg",
+  "updateUrl": "https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/plugin.json",
+  "download_url": "https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/releases/folder-browser-v0.4.4.jsplugin.zip",
+  "entryHash": "",
+  "zipHash": ""
+}

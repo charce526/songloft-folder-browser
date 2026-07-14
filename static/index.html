@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f8f7f4">
+  <title>文件夹浏览</title>
+  <link rel="stylesheet" href="static/css/app.css">
+</head>
+<body>
+  <div class="embedded-shell">
+    <header class="compact-bar">
+      <button class="icon-button mobile-only" id="menuButton" aria-label="打开文件夹目录"><span data-icon="menu"></span></button>
+      <div class="compact-title">
+        <span class="compact-mark"><span data-icon="folderMusic"></span></span>
+        <div><strong>文件夹浏览</strong><span id="libraryCount">正在读取音乐库</span></div>
+      </div>
+      <div class="search-wrap">
+        <span data-icon="search"></span>
+        <input id="searchInput" type="search" autocomplete="off" placeholder="搜索当前文件夹及子文件夹">
+        <kbd>⌘ K</kbd>
+      </div>
+      <button class="button ghost compact" id="refreshButton"><span data-icon="refresh"></span><span class="desktop-label">刷新</span></button>
+    </header>
+
+    <div class="browser-layout">
+      <aside class="tree-pane" id="treePane">
+        <div class="tree-pane-header">
+          <div><span class="eyebrow">Library</span><h2>文件夹</h2></div>
+          <button class="icon-button mini" id="collapseTree" title="折叠目录"><span data-icon="collapse"></span></button>
+        </div>
+        <div class="tree-scroll">
+          <nav id="folderTree" class="folder-tree" aria-label="音乐文件夹目录树">
+            <div class="tree-loading"><span class="tree-spinner"></span>正在构建目录树…</div>
+          </nav>
+        </div>
+        <section class="tree-playlists" id="playlistSection">
+          <div class="tree-section-title">
+            <button class="tree-section-toggle" id="playlistSectionToggle" aria-expanded="true" aria-controls="playlistNav"><span>我的歌单</span><span class="section-chevron" data-icon="chevron"></span></button>
+            <button class="icon-button mini" id="newPlaylistSide" title="新建歌单"><span data-icon="plus"></span></button>
+          </div>
+          <div id="playlistNav" class="playlist-nav"><div class="nav-empty">正在载入…</div></div>
+        </section>
+      </aside>
+
+      <main class="content-pane">
+        <section class="content" aria-live="polite">
+          <div class="page-heading">
+            <div class="heading-copy">
+              <nav class="breadcrumbs" id="breadcrumbs" aria-label="面包屑"></nav>
+              <h1 id="folderTitle">音乐文件夹</h1>
+              <p id="folderMeta">正在读取你的音乐库…</p>
+            </div>
+            <div class="heading-actions">
+              <button class="button secondary" id="selectAllButton"><span data-icon="checkSquare"></span>全选</button>
+              <button class="button primary" id="folderPlaylistButton"><span data-icon="playlistAdd"></span>文件夹建歌单</button>
+            </div>
+          </div>
+
+          <section class="folders-section" id="foldersSection" hidden>
+            <div class="section-title folder-section-title">
+              <div><h2>子文件夹</h2><span id="folderCount"></span></div>
+              <div class="folder-actions">
+                <button class="button ghost compact" id="selectAllFolders">全选文件夹</button>
+                <button class="button secondary compact" id="selectedFoldersPlaylist" disabled><span data-icon="playlistAdd"></span><span id="selectedFoldersLabel">加入歌单</span></button>
+              </div>
+            </div>
+            <div id="folderGrid" class="folder-grid"></div>
+          </section>
+
+          <section class="songs-section">
+            <div class="section-title">
+              <div><h2 id="songsHeading">当前文件夹歌曲</h2><span id="songCount"></span></div>
+              <div class="view-controls">
+                <button class="icon-button active" data-view="list" title="列表视图"><span data-icon="list"></span></button>
+                <button class="icon-button" data-view="grid" title="卡片视图"><span data-icon="grid"></span></button>
+                <div class="column-settings-wrap">
+                  <button class="button ghost compact column-button" id="columnSettingsButton" title="自定义显示列" aria-expanded="false" aria-controls="columnSettingsPanel"><span data-icon="columns"></span>列设置</button>
+                  <div class="column-settings" id="columnSettingsPanel" hidden>
+                    <div class="column-settings-head"><strong>显示列</strong><button id="resetColumns">恢复默认</button></div>
+                    <div id="columnChoices" class="column-choices"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="loadingState" class="loading-state">
+              <div class="skeleton wide"></div><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton short"></div>
+            </div>
+            <div id="emptyState" class="empty-state" hidden>
+              <div class="empty-art"><span data-icon="folderMusic"></span></div>
+              <h3>这个文件夹里没有直接存放的歌曲</h3>
+              <p>请从左侧目录树进入子文件夹，或使用搜索查找其全部子目录。</p>
+            </div>
+
+            <div id="songTableWrap" class="song-table-wrap" hidden>
+              <table class="song-table">
+                <thead><tr id="songTableHead"></tr></thead>
+                <tbody id="songTableBody"></tbody>
+              </table>
+              <div id="songGrid" class="song-grid"></div>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <div class="bulk-bar" id="bulkBar" hidden>
+    <div class="bulk-count"><strong id="selectedCount">0</strong><span>首已选择</span></div>
+    <div class="bulk-divider"></div>
+    <button class="bulk-action" id="bulkPlaylist" aria-label="加入歌单" title="加入歌单"><span data-icon="playlistAdd"></span><span class="bulk-action-label">加入歌单</span></button>
+    <button class="bulk-action" id="bulkRemovePlaylist" aria-label="从歌单移除" title="从歌单移除" hidden><span data-icon="playlistRemove"></span><span class="bulk-action-label">从歌单移除</span></button>
+    <button class="bulk-action danger" id="bulkDelete" aria-label="从音乐库移除" title="从音乐库移除"><span data-icon="trash"></span><span class="bulk-action-label">从音乐库移除</span></button>
+    <button class="icon-button" id="clearSelection" aria-label="取消选择" title="取消选择"><span data-icon="x"></span></button>
+  </div>
+
+  <div class="player" id="player" hidden>
+    <button class="player-cover" id="playerPlay"><span data-icon="pause"></span></button>
+    <div class="player-info"><strong id="playerTitle"></strong><span id="playerArtist"></span></div>
+    <div class="player-progress"><span id="playerTime">0:00</span><input id="playerSeek" type="range" min="0" max="100" value="0"><span id="playerDuration">0:00</span></div>
+    <button class="icon-button" id="closePlayer" aria-label="关闭播放器"><span data-icon="x"></span></button>
+    <audio id="audio"></audio>
+  </div>
+
+  <div class="modal-backdrop" id="playlistModal" hidden>
+    <section class="modal" role="dialog" aria-modal="true" aria-labelledby="playlistModalTitle">
+      <div class="modal-header"><div><span class="eyebrow">整理音乐</span><h2 id="playlistModalTitle">加入歌单</h2></div><button class="icon-button" data-close-modal><span data-icon="x"></span></button></div>
+      <div class="segmented" id="playlistTabs"><button class="active" data-tab="existing">选择已有歌单</button><button data-tab="create">创建新歌单</button></div>
+      <div class="modal-body">
+        <div id="existingPlaylistPanel"><div id="playlistChoices" class="playlist-choices"></div></div>
+        <form id="createPlaylistPanel" hidden>
+          <label>歌单名称<input id="playlistName" maxlength="100" placeholder="例如：周末公路音乐" required></label>
+          <label>简介（可选）<textarea id="playlistDescription" maxlength="500" rows="3" placeholder="说说这个歌单适合什么时候听"></textarea></label>
+        </form>
+      </div>
+      <div class="modal-footer"><span id="playlistSelectionHint"></span><button class="button ghost" data-close-modal>取消</button><button class="button primary" id="confirmPlaylist">完成</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="editModal" hidden>
+    <section class="modal small" role="dialog" aria-modal="true" aria-labelledby="editModalTitle">
+      <div class="modal-header"><div><span class="eyebrow">歌曲信息</span><h2 id="editModalTitle">编辑元数据</h2></div><button class="icon-button" data-close-modal><span data-icon="x"></span></button></div>
+      <form class="modal-body form-stack" id="editForm">
+        <label>歌曲名<input id="editTitle" maxlength="300" required></label>
+        <label>艺术家<input id="editArtist" maxlength="300"></label>
+        <label>专辑<input id="editAlbum" maxlength="300"></label>
+      </form>
+      <div class="modal-footer"><button class="button ghost" data-close-modal>取消</button><button class="button primary" id="saveSong">保存修改</button></div>
+    </section>
+  </div>
+
+  <div class="modal-backdrop" id="confirmModal" hidden>
+    <section class="modal small confirm-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <div class="confirm-icon"><span data-icon="trash"></span></div>
+      <h2 id="confirmTitle">确定从音乐库移除所选歌曲？</h2>
+      <p id="confirmText">Songloft 会删除歌曲记录，并清理关联封面和缓存。当前插件接口未声明会删除原始音频文件。</p>
+      <label class="delete-ack"><input id="deleteAcknowledgement" type="checkbox"><span>我已了解此操作会修改音乐库，且无法在插件内撤销</span></label>
+      <div class="modal-footer"><button class="button ghost" data-close-modal>取消</button><button class="button danger-button" id="confirmDelete" disabled>确认移除</button></div>
+    </section>
+  </div>
+
+  <div id="toastRegion" class="toast-region" aria-live="assertive"></div>
+  <div class="tree-scrim" id="treeScrim"></div>
+  <script src="static/js/app.js"></script>
+</body>
+</html>
