@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/songloft-org/plugin-toolchain/main/schemas/plugin.schema.json",
   "name": "文件夹浏览",
-  "version": "0.4.4",
+  "version": "0.4.5",
   "description": "通过文件夹视图进行歌曲浏览、整理和歌单创建",
   "author": "charce526",
   "homepage": "https://github.com/charce526/songloft-folder-browser",
@@ -17,7 +17,7 @@
   ],
   "icon": "icon.svg",
   "updateUrl": "https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/plugin.json",
-  "download_url": "https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/releases/folder-browser-v0.4.4.jsplugin.zip",
+  "download_url": "https://raw.githubusercontent.com/charce526/songloft-folder-browser/main/releases/folder-browser-v0.4.5.jsplugin.zip",
   "entryHash": "",
   "zipHash": ""
 }
