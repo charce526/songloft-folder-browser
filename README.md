@@ -53,14 +53,6 @@
   <img src="docs/screenshots/mobile-selection.jpg" alt="移动端歌曲多选和批量操作界面" width="360">
 </p>
 
-## 🧩 界面嵌入说明
-
-插件页面已去除独立应用式侧栏和重复品牌导航，采用适合 Songloft 应用内 WebView 的双栏布局。Songloft Android、iOS、Windows、macOS 与 Linux 客户端会在应用内 WebView 打开插件。
-
-Songloft 官方 Web 客户端目前会通过新标签页打开 JS 插件，这是 `songloft-player` 的宿主行为，插件自身无法覆盖。若要让 Web 版也直接出现在原生“音乐库”目录路由中，需要同时修改 Songloft Flutter 前端，而不仅是安装本插件。
-
-插件的浅色/深色模式直接读取 Songloft 外观设置，并监听运行时主题切换；旧版客户端缺少主题桥接方法时会使用 Songloft 保存的主题标记与系统主题兜底。
-
 ## 📝 更新记录
 
 ### v0.4.6
